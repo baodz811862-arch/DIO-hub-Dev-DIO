@@ -221,7 +221,7 @@ _G.Sea3 = false
 local placeId = game.PlaceId
 
 if placeId == 2753915549 or placeId == 85211729168715 then
-    _G.Sea1 = true
+     _G.Sea1 = true
 elseif placeId == 4442272183 or placeId == 79091703265657 then 
     _G.Sea2 = true
 elseif placeId == 7449423635 or placeId == 100117331123089 then
@@ -867,7 +867,89 @@ QuestLv=2
 NameMon="Skull Slayer"
 CFrameQ=CFrame.new(-16665.19140625, 104.59640502929688, 1579.6943359375)
 CFrameMon=CFrame.new(-16811.5703125, 84.625244140625, 1542.235107421875)
+elseif Lv==2600 or Lv<=2624 or SelectMonster=="Reef Bandit" then
+Ms="Reef Bandit"
+NameQuest="SubmergedQuest1"
+QuestLv=1
+NameMon="Reef Bandit"
+CFrameQ=CFrame.new(10778.875, -2087.72437, 9265.18359)
+CFrameMon=CFrame.new(11019.1318, -2146.06812, 9342.3916)
+if _G.AutoLevel and (CFrameQ.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 10000 then
+    pcall(function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-16269.7041, 25.2288494, 1373.65955)
+        task.wait(2)
+        game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RF/SubmarineWorkerSpeak"):InvokeServer("TravelToSubmergedIsland")
+    end)
 end
+elseif Lv==2625 or Lv<=2649 or SelectMonster=="Coral Pirate" then
+Ms="Coral Pirate"
+NameQuest="SubmergedQuest1"
+QuestLv=2
+NameMon="Coral Pirate"
+CFrameQ=CFrame.new(10778.875, -2087.72437, 9265.18359)
+CFrameMon=CFrame.new(10808.6006, -2030.36145, 9364.2334)
+if _G.AutoLevel and (CFrameQ.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 10000 then
+    pcall(function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-16269.7041, 25.2288494, 1373.65955)
+        task.wait(2)
+        game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RF/SubmarineWorkerSpeak"):InvokeServer("TravelToSubmergedIsland")
+    end)
+end
+elseif Lv==2650 or Lv<=2674 or SelectMonster=="Sea Chanter" then
+Ms="Sea Chanter"
+NameQuest="SubmergedQuest2"
+QuestLv=1
+NameMon="Sea Chanter"
+CFrameQ=CFrame.new(10880.6855, -2086.20044, 10032.624)
+CFrameMon=CFrame.new(10671.2715, -2057.59155, 10047.2588)
+if _G.AutoLevel and (CFrameQ.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 10000 then
+    pcall(function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-16269.7041, 25.2288494, 1373.65955)
+        task.wait(2)
+        game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RF/SubmarineWorkerSpeak"):InvokeServer("TravelToSubmergedIsland")
+    end)
+end
+elseif Lv==2675 or Lv<=2699 or SelectMonster=="Ocean Prophet" then
+Ms="Ocean Prophet"
+NameQuest="SubmergedQuest2"
+QuestLv=2
+NameMon="Ocean Prophet"
+CFrameQ=CFrame.new(10880.6855, -2086.20044, 10032.624)
+CFrameMon=CFrame.new(11008.5195, -2007.72839, 10223.0791)
+if _G.AutoLevel and (CFrameQ.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 10000 then
+    pcall(function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-16269.7041, 25.2288494, 1373.65955)
+        task.wait(2)
+        game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RF/SubmarineWorkerSpeak"):InvokeServer("TravelToSubmergedIsland")
+    end)
+end
+elseif Lv==2700 or Lv<=2724 or SelectMonster=="High Disciple" then
+Ms="High Disciple"
+NameQuest="SubmergedQuest3"
+QuestLv=1
+NameMon="High Disciple"
+CFrameQ=CFrame.new(9640.08789, -1992.44507, 9613.65234)
+CFrameMon=CFrame.new(9750.41602, -1966.93884, 9753.36035)
+if _G.AutoLevel and (CFrameQ.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 10000 then
+    pcall(function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-16269.7041, 25.2288494, 1373.65955)
+        task.wait(2)
+        game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RF/SubmarineWorkerSpeak"):InvokeServer("TravelToSubmergedIsland")
+    end)
+end
+elseif Lv>=2725 or SelectMonster=="Grand Devotee" then
+Ms="Grand Devotee"
+NameQuest="SubmergedQuest3"
+QuestLv=2
+NameMon="Grand Devotee"
+CFrameQ=CFrame.new(9640.08789, -1992.44507, 9613.65234)
+CFrameMon=CFrame.new(9611.70508, -1993.47119, 9882.68848)
+if _G.AutoLevel and (CFrameQ.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 10000 then
+    pcall(function()
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-16269.7041, 25.2288494, 1373.65955)
+        task.wait(2)
+        game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RF/SubmarineWorkerSpeak"):InvokeServer("TravelToSubmergedIsland")
+    end)
 end
 end
 if Sea1 then
@@ -878,7 +960,7 @@ tableMon={
   "Raider","Mercenary","Swan Pirate","Factory Staff","Marine Lieutenant","Marine Captain","Zombie","Vampire","Snow Trooper","Winter Warrior","Lab Subordinate","Horned Warrior","Magma Ninja","Lava Pirate","Ship Deckhand","Ship Engineer","Ship Steward","Ship Officer","Arctic Warrior","Snow Lurker","Sea Soldier","Water Fighter"
 } elseif Sea3 then
 tableMon={
-  "Pirate Millionaire","Dragon Crew Warrior","Dragon Crew Archer","Hydra Enforcer","Venomous Assailant","Marine Commodore","Marine Rear Admiral","Fishman Raider","Fishman Captain","Forest Pirate","Mythological Pirate","Jungle Pirate","Musketeer Pirate","Reborn Skeleton","Living Zombie","Demonic Soul","Posessed Mummy", "Peanut Scout", "Peanut President", "Ice Cream Chef", "Ice Cream Commander", "Cookie Crafter", "Cake Guard", "Baking Staff", "Head Baker", "Cocoa Warrior", "Chocolate Bar Battler", "Sweet Thief", "Candy Rebel", "Candy Pirate", "Snow Demon","Isle Outlaw","Island Boy","Sun-kissed Warrior","Isle Champion","Serpent Hunter","Skull Slayer"
+  "Pirate Millionaire","Dragon Crew Warrior","Dragon Crew Archer","Hydra Enforcer","Venomous Assailant","Marine Commodore","Marine Rear Admiral","Fishman Raider","Fishman Captain","Forest Pirate","Mythological Pirate","Jungle Pirate","Musketeer Pirate","Reborn Skeleton","Living Zombie","Demonic Soul","Posessed Mummy", "Peanut Scout", "Peanut President", "Ice Cream Chef", "Ice Cream Commander", "Cookie Crafter", "Cake Guard", "Baking Staff", "Head Baker", "Cocoa Warrior", "Chocolate Bar Battler", "Sweet Thief", "Candy Rebel", "Candy Pirate", "Snow Demon","Isle Outlaw","Island Boy","Sun-kissed Warrior","Isle Champion","Serpent Hunter","Skull Slayer", "Reef Bandit", "Coral Pirate", "Sea Chanter", "Ocean Prophet", "High Disciple", "Grand Devotee"
 }
 end
 if Sea1 then
