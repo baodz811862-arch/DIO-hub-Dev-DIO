@@ -9276,7 +9276,7 @@ spawn(function()
                 end
             end
         end)
-    ende-- Hàm bổ trợ quét thuyền của người chơi (nếu source chưa có thì dùng hàm này)
+    end-- Hàm bổ trợ quét thuyền của người chơi (nếu source chưa có thì dùng hàm này)
 local function CheckBoat()
     if workspace:FindFirstChild("Boats") then
         for _, boat in pairs(workspace.Boats:GetChildren()) do
