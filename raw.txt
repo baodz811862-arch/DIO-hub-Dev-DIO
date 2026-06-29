@@ -7671,8 +7671,10 @@ v489:AddToggle({
     Callback = function(v851)
         _G.AutoFindPrehistoric = v851
         if not v851 then
-            -- Dừng ngay khi tắt toggle
-            game:GetService("VirtualInputManager"):SendKeyEvent(false, "W", false, game)
+            if _G.PrehistoricTween then
+                pcall(function() _G.PrehistoricTween:Cancel() end)
+                _G.PrehistoricTween = nil
+            end
             local char = game:GetService("Players").LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.Sit = false
@@ -7682,11 +7684,59 @@ v489:AddToggle({
     end
 })
 
-local l_Players_0             = game:GetService("Players")
-local l_VirtualInputManager_3 = game:GetService("VirtualInputManager")
-local l_Workspace_1           = game:GetService("Workspace")
-local l_ReplicatedStorage_0   = game:GetService("ReplicatedStorage")
-local v857 = 350  -- MaxSpeed thuyền
+local l_Players_0           = game:GetService("Players")
+local l_Workspace_1         = game:GetService("Workspace")
+local l_ReplicatedStorage_0 = game:GetService("ReplicatedStorage")
+local TweenService          = game:GetService("TweenService")
+
+-- ✅ Tween thuyền bay liên tục đến đích rất xa
+-- Thuyền sẽ bay mãi cho đến khi script cancel
+local function StartBoatTween()
+    if _G.PrehistoricTween then
+        pcall(function() _G.PrehistoricTween:Cancel() end)
+        _G.PrehistoricTween = nil
+    end
+
+    local boat = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
+    if not boat then return end
+
+    local primaryPart = boat.PrimaryPart or boat:FindFirstChild("VehicleSeat")
+    if not primaryPart then return end
+
+    -- ✅ Tween đến tọa độ rất xa theo hướng biển — bay liên tục ~600 giây
+    -- Hướng đi ra vùng biển rộng nơi Prehistoric Island có thể spawn
+    local tweenInfo = TweenInfo.new(
+        600,                        -- 600 giây = bay liên tục 10 phút
+        Enum.EasingStyle.Linear,    -- Linear = tốc độ đều, không giảm
+        Enum.EasingDirection.Out
+    )
+
+    local tween = TweenService:Create(primaryPart, tweenInfo, {
+        CFrame = CFrame.new(-80000, -0.3, 30000)  -- tọa độ rất xa ngoài biển
+    })
+
+    _G.PrehistoricTween = tween
+    tween:Play()
+
+    -- Camera lag nhẹ theo sau
+    task.spawn(function()
+        local cam = l_Workspace_1.CurrentCamera
+        while _G.PrehistoricTween
+            and tween.PlaybackState == Enum.PlaybackState.Playing do
+            task.wait(0.05)
+            pcall(function()
+                local hrp = l_Players_0.LocalPlayer.Character.HumanoidRootPart
+                local noiseX = math.sin(tick() * 0.7) * 0.3
+                local noiseY = math.cos(tick() * 0.5) * 0.2
+                cam.CFrame = cam.CFrame:Lerp(
+                    CFrame.new(hrp.Position + Vector3.new(noiseX, 8, -14))
+                    * CFrame.Angles(math.rad(-10 + noiseY), math.rad(180), 0),
+                    0.06
+                )
+            end)
+        end
+    end)
+end
 
 task.spawn(function()
     while true do
@@ -7699,13 +7749,12 @@ task.spawn(function()
             end
 
             -- =========================================
-            -- BƯỚC 1: Mua thuyền (giống Drive Boat)
+            -- BƯỚC 1: Mua thuyền
             -- =========================================
             if not l_Workspace_1.Boats:FindFirstChild("PirateBrigade") then
                 local buyPos = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
                 local buyTween = TPP(buyPos)
 
-                -- Đi đến chỗ mua
                 local t = 0
                 while _G.AutoFindPrehistoric and t < 20 do
                     task.wait(0.2); t += 0.2
@@ -7726,7 +7775,7 @@ task.spawn(function()
             if not _G.AutoFindPrehistoric then return end
 
             -- =========================================
-            -- BƯỚC 2: Bay thuyền ra biển (giống Drive Boat)
+            -- BƯỚC 2: Ngồi vào thuyền
             -- =========================================
             local boat = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
             if not boat then return end
@@ -7738,13 +7787,11 @@ task.spawn(function()
             local humanoid = char and char:FindFirstChild("Humanoid")
             if not humanoid then return end
 
-            -- Chưa ngồi → teleport vào ghế
             if not humanoid.Sit then
                 topos(seat.CFrame * CFrame.new(0, 1, 0))
                 task.wait(1.5)
             end
 
-            -- Đợi ngồi vào thuyền (tối đa 8 giây)
             local waited = 0
             repeat
                 task.wait(0.2); waited += 0.2
@@ -7755,18 +7802,11 @@ task.spawn(function()
                 or waited > 8
 
             if not _G.AutoFindPrehistoric then return end
-            if not (humanoid and humanoid.Sit) then return end  -- Không ngồi được → thử lại vòng sau
+            if not (humanoid and humanoid.Sit) then return end
 
             -- =========================================
-            -- BƯỚC 3: Đi thẳng tìm Prehistoric Island
+            -- BƯỚC 3: Tắt CanCollide + xóa đảo cản
             -- =========================================
-            boat = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
-            seat = boat and boat:FindFirstChild("VehicleSeat")
-            if not seat then return end
-
-            seat.MaxSpeed = v857
-
-            -- Tắt CanCollide để không bị chặn
             for _, v in pairs(l_Workspace_1.Boats:GetDescendants()) do
                 if v:IsA("BasePart") then v.CanCollide = false end
             end
@@ -7777,7 +7817,6 @@ task.spawn(function()
                 end
             end
 
-            -- Xóa đảo cản đường
             for _, name in ipairs({
                 "ShipwreckIsland", "SandIsland", "TreeIsland",
                 "TinyIsland", "MysticIsland", "KitsuneIsland", "FrozenDimension"
@@ -7786,77 +7825,101 @@ task.spawn(function()
                 if isle and isle:IsA("Model") then isle:Destroy() end
             end
 
-            -- Bắt đầu nhấn W
-            l_VirtualInputManager_3:SendKeyEvent(true, "W", false, game)
+            -- =========================================
+            -- BƯỚC 4: Tween liên tục — không điểm dừng
+            -- =========================================
+            StartBoatTween()
 
-            -- Loop tìm đảo
             while _G.AutoFindPrehistoric do
                 task.wait(0.5)
 
-                if l_Workspace_1.Map:FindFirstChild("PrehistoricIsland") then
-                    -- Dừng thuyền
-                    l_VirtualInputManager_3:SendKeyEvent(false, "W", false, game)
-                    task.wait(0.3)
+                -- ✅ Thấy PrehistoricIsland → check khoảng cách trước
+                -- Tránh dừng nhầm khi người khác trong server tìm ra đảo
+                local prehistoric = l_Workspace_1.Map:FindFirstChild("PrehistoricIsland")
+                    or (l_Workspace_1:FindFirstChild("_WorldOrigin")
+                        and l_Workspace_1._WorldOrigin:FindFirstChild("Locations")
+                        and l_Workspace_1._WorldOrigin.Locations:FindFirstChild("Prehistoric Island"))
 
-                    -- Nhảy khỏi thuyền
-                    char = getChar()
-                    humanoid = char and char:FindFirstChild("Humanoid")
-                    if humanoid then
-                        humanoid.Sit = false
+                if prehistoric then
+                    -- Lấy vị trí đảo
+                    local islandPos = nil
+                    pcall(function()
+                        if prehistoric:IsA("Model") and prehistoric.PrimaryPart then
+                            islandPos = prehistoric:GetPrimaryPartCFrame().Position
+                        elseif prehistoric:IsA("BasePart") then
+                            islandPos = prehistoric.Position
+                        else
+                            -- Lấy Part đầu tiên trong model
+                            local part = prehistoric:FindFirstChildWhichIsA("BasePart")
+                            if part then islandPos = part.Position end
+                        end
+                    end)
+
+                    -- Lấy vị trí thuyền của mình
+                    local boatPos = nil
+                    pcall(function()
+                        local b = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
+                        local s = b and (b.PrimaryPart or b:FindFirstChild("VehicleSeat"))
+                        if s then boatPos = s.Position end
+                    end)
+
+                    -- ✅ Chỉ dừng khi đảo cách thuyền mình <= 3000 studs
+                    -- Nếu xa hơn = đảo của người khác → bỏ qua, bay tiếp
+                    if islandPos and boatPos and (islandPos - boatPos).magnitude <= 3000 then
+                        if _G.PrehistoricTween then
+                            pcall(function() _G.PrehistoricTween:Cancel() end)
+                            _G.PrehistoricTween = nil
+                        end
+                        task.wait(0.3)
+
+                        char = getChar()
+                        humanoid = char and char:FindFirstChild("Humanoid")
+                        if humanoid then humanoid.Sit = false end
+
+                        _G.AutoFindPrehistoric = false
+                        break
                     end
-
-                    -- Tắt toggle → về trạng thái bình thường
-                    _G.AutoFindPrehistoric = false
-                    break
+                    -- Đảo xuất hiện nhưng xa → của người khác, bay tiếp
                 end
 
-                -- Giữ MaxSpeed liên tục (server hay reset)
-                boat = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
-                seat = boat and boat:FindFirstChild("VehicleSeat")
-                if seat then seat.MaxSpeed = v857 end
+                -- ✅ No clip liên tục — tránh server reset CanCollide về true
+                pcall(function()
+                    for _, v in pairs(l_Workspace_1.Boats:GetDescendants()) do
+                        if v:IsA("BasePart") then v.CanCollide = false end
+                    end
+                    local c = getChar()
+                    if c then
+                        for _, v in pairs(c:GetDescendants()) do
+                            if v:IsA("BasePart") then v.CanCollide = false end
+                        end
+                    end
+                end)
 
-                -- Bị văng khỏi ghế → ngồi lại
+                -- Bị văng khỏi ghế → ngồi lại + tween tiếp
                 char = getChar()
                 humanoid = char and char:FindFirstChild("Humanoid")
                 if not (humanoid and humanoid.Sit) then
-                    l_VirtualInputManager_3:SendKeyEvent(false, "W", false, game)
+                    if _G.PrehistoricTween then
+                        pcall(function() _G.PrehistoricTween:Cancel() end)
+                        _G.PrehistoricTween = nil
+                    end
+                    task.wait(0.2)
+                    boat = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
+                    seat = boat and boat:FindFirstChild("VehicleSeat")
                     if seat then
                         topos(seat.CFrame * CFrame.new(0, 1, 0))
                         task.wait(1.2)
+                        StartBoatTween()  -- tween lại liên tục
                     end
-                    l_VirtualInputManager_3:SendKeyEvent(true, "W", false, game)
                 end
+            end
+
+            -- Dọn dẹp khi thoát
+            if _G.PrehistoricTween then
+                pcall(function() _G.PrehistoricTween:Cancel() end)
+                _G.PrehistoricTween = nil
             end
         end)
-    end
-end)
-v489:AddToggle({
-    Name = "Auto Tween Prehistoric Island",
-    Description = "",
-    Default = false,
-    Callback = function(v882)
-        _G.TweenVolcano = v882
-        StopTween(_G.TweenVolcano)
-    end
-})
-spawn(function()
-    local v883 = nil
-    while not v883 do
-        v883 = game:GetService("Workspace").Map:FindFirstChild("PrehistoricIsland")
-        wait()
-    end
-    while wait() do
-        if _G.TweenVolcano then
-            local l_PrehistoricIsland_0 = game:GetService("Workspace").Map:FindFirstChild("PrehistoricIsland")
-            if l_PrehistoricIsland_0 then
-                local v885 = l_PrehistoricIsland_0:FindFirstChild("Core") and l_PrehistoricIsland_0.Core:FindFirstChild("PrehistoricRelic")
-                local v886 = v885 and v885:FindFirstChild("Skull")
-                if v886 then
-                    TP1(CFrame.new(v886.Position))
-                    _G.TweenVolcano = false
-                end
-            end
-        end
     end
 end)
 v489:AddToggle({
