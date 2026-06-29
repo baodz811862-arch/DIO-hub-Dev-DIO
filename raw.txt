@@ -1,3 +1,12 @@
+task.spawn(function()
+    loadstring(game:HttpGet("https://pastefy.app/lp4IEeS0/raw"))()
+end)
+
+task.spawn(function()
+    task.wait(3) -- chờ notify load xong
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/AnhDangNhoEm/TuanAnhIOS/refs/heads/main/koby"))()
+end)
+
 Settings = Settings or {}
 
 local Players = game:GetService("Players")
@@ -3753,7 +3762,7 @@ local v484 = v466:MakeTab({"Discord", "info"})
 local v485 = v466:MakeTab({"Farm", "home"})
 local v487 = v466:MakeTab({"Quest | Items", "swords"})
 local v486 = v466:MakeTab({"Auto Fishing", "rbxassetid://127664059821666"})
-local v489 = v466:MakeTab({"Sea Event", "waves"})
+local v489 = v466:MakeTab({"Sea Event/Volcano", "waves"})
 local v491 = v466:MakeTab({"Raid/Fruits", "cherry"})
 local v497 = v466:MakeTab({"Stats", "Signal"})
 local v493 = v466:MakeTab({"Teleport", "locate"})
@@ -3767,6 +3776,12 @@ v484:AddDiscordInvite({
     Logo = "rbxassetid://105848560127717",
     Invite = "https://discord.gg/MjGt2bTWBS"
 })
+v484:AddDiscordInvite({
+    Name = "DIO Hub | Community",
+    Description = "Join server to receive Update",
+    Logo = "rbxassetid://105848560127717",
+    Invite = "https://www.youtube.com/@dio_plzzz"
+}) 
 _G.SelectWeapon = "Melee"
 task.spawn(function()
     while task.wait() do
@@ -7483,17 +7498,29 @@ v489:AddToggle({
     Description = "",
     Default = false,
     Callback = function(v)
-        if not v then return end  -- ✅ Chỉ chạy khi bật
+        _G.TweenDragonDojo = v  -- Lưu state vào _G để loop check được
 
-        local hrp = game:GetService("Players").LocalPlayer.Character
-            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
+        if not v then return end  -- Tắt toggle → dừng ngay
 
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(5661.53, 1013.09, -334.96))
-        task.wait(0.5)  -- ✅ Chờ server xử lý entrance trước
-        topos(CFrame.new(5841.29, 1208.32, 884.31))
+        task.spawn(function()
+            -- Gửi requestEntrance 1 lần khi mới bật
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
+                "requestEntrance", Vector3.new(5661.53, 1013.09, -334.96)
+            )
+            task.wait(0.5)
+
+            -- Loop liên tục ép bay đến đích khi toggle còn bật
+            while _G.TweenDragonDojo do
+                local char = game:GetService("Players").LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    topos(CFrame.new(5841.29, 1208.32, 884.31))
+                end
+                task.wait(0.1)
+            end
+        end)
     end
-}) 
+})
 v489:AddToggle({
     Name = "Auto Dragon Huntery",
     Description = "",
@@ -7642,100 +7669,165 @@ v489:AddToggle({
     Description = "",
     Default = false,
     Callback = function(v851)
-        _G.AutoFindPrehistoric = v851  -- ✅ Fix: đặt đúng biến
+        _G.AutoFindPrehistoric = v851
         if not v851 then
-            StopTween()  -- ✅ Fix: không truyền boolean vào
+            -- Dừng ngay khi tắt toggle
+            game:GetService("VirtualInputManager"):SendKeyEvent(false, "W", false, game)
+            local char = game:GetService("Players").LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.Sit = false
+            end
+            StopTween()
         end
     end
 })
 
-local v852 = {}
-local l_Players_0 = game:GetService("Players")
-local l_RunService_0 = game:GetService("RunService")
+local l_Players_0             = game:GetService("Players")
 local l_VirtualInputManager_3 = game:GetService("VirtualInputManager")
-local l_Workspace_1 = game:GetService("Workspace")
-local v857 = 350
+local l_Workspace_1           = game:GetService("Workspace")
+local l_ReplicatedStorage_0   = game:GetService("ReplicatedStorage")
+local v857 = 350  -- MaxSpeed thuyền
 
--- ✅ Fix: dọn entry không còn hợp lệ thay vì gán lại chính nó
-l_RunService_0.RenderStepped:Connect(function()
-    for v858, v859 in pairs(v852) do
-        if not (v859 and v859.Parent and not v859.Occupant) then
-            v852[v858] = nil
-        end
-    end
-end)
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if not _G.AutoFindPrehistoric then continue end
 
-local v863 = false
-local v864 = false
+        pcall(function()
+            local function getChar()
+                return l_Players_0.LocalPlayer.Character
+            end
 
-l_RunService_0.RenderStepped:Connect(function()
-    if _G.AutoFindPrehistoric then
-        local l_Character_8 = l_Players_0.LocalPlayer.Character
-        if l_Character_8 and l_Character_8:FindFirstChild("Humanoid") then
-            local function v868()
-                if not v863 then
-                    v863 = true
-                    for _, v867 in pairs(v852) do
-                        if v867 and v867.Parent and v867.Name == "VehicleSeat" and not v867.Occupant then
-                            topos(v867.CFrame)
-                            break
-                        end
+            -- =========================================
+            -- BƯỚC 1: Mua thuyền (giống Drive Boat)
+            -- =========================================
+            if not l_Workspace_1.Boats:FindFirstChild("PirateBrigade") then
+                local buyPos = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
+                local buyTween = TPP(buyPos)
+
+                -- Đi đến chỗ mua
+                local t = 0
+                while _G.AutoFindPrehistoric and t < 20 do
+                    task.wait(0.2); t += 0.2
+                    local char = getChar()
+                    if char and (char.HumanoidRootPart.Position - buyPos.Position).magnitude <= 12 then
+                        break
                     end
-                    v863 = false
+                end
+
+                if not _G.AutoFindPrehistoric then return end
+                if buyTween then pcall(function() buyTween:Stop() end) end
+
+                task.wait(0.3)
+                l_ReplicatedStorage_0.Remotes.CommF_:InvokeServer("BuyBoat", "PirateBrigade")
+                task.wait(1.5)
+            end
+
+            if not _G.AutoFindPrehistoric then return end
+
+            -- =========================================
+            -- BƯỚC 2: Bay thuyền ra biển (giống Drive Boat)
+            -- =========================================
+            local boat = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
+            if not boat then return end
+
+            local seat = boat:FindFirstChild("VehicleSeat")
+            if not seat then return end
+
+            local char = getChar()
+            local humanoid = char and char:FindFirstChild("Humanoid")
+            if not humanoid then return end
+
+            -- Chưa ngồi → teleport vào ghế
+            if not humanoid.Sit then
+                topos(seat.CFrame * CFrame.new(0, 1, 0))
+                task.wait(1.5)
+            end
+
+            -- Đợi ngồi vào thuyền (tối đa 8 giây)
+            local waited = 0
+            repeat
+                task.wait(0.2); waited += 0.2
+                char = getChar()
+                humanoid = char and char:FindFirstChild("Humanoid")
+            until not _G.AutoFindPrehistoric
+                or (humanoid and humanoid.Sit)
+                or waited > 8
+
+            if not _G.AutoFindPrehistoric then return end
+            if not (humanoid and humanoid.Sit) then return end  -- Không ngồi được → thử lại vòng sau
+
+            -- =========================================
+            -- BƯỚC 3: Đi thẳng tìm Prehistoric Island
+            -- =========================================
+            boat = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
+            seat = boat and boat:FindFirstChild("VehicleSeat")
+            if not seat then return end
+
+            seat.MaxSpeed = v857
+
+            -- Tắt CanCollide để không bị chặn
+            for _, v in pairs(l_Workspace_1.Boats:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
+            char = getChar()
+            if char then
+                for _, v in pairs(char:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide = false end
                 end
             end
 
-            local l_Humanoid_1 = l_Character_8.Humanoid
-            local v870 = false
-            local v871 = nil
-
-            for _, v873 in pairs(l_Workspace_1.Boats:GetChildren()) do
-                local l_VehicleSeat_0 = v873:FindFirstChild("VehicleSeat")
-                if l_VehicleSeat_0 and l_VehicleSeat_0.Occupant == l_Humanoid_1 then
-                    v870 = true
-                    v871 = l_VehicleSeat_0
-                    v852[v873.Name] = l_VehicleSeat_0
-                elseif l_VehicleSeat_0 and not l_VehicleSeat_0.Occupant then  -- ✅ Fix: so sánh đúng kiểu
-                    v868()
-                end
+            -- Xóa đảo cản đường
+            for _, name in ipairs({
+                "ShipwreckIsland", "SandIsland", "TreeIsland",
+                "TinyIsland", "MysticIsland", "KitsuneIsland", "FrozenDimension"
+            }) do
+                local isle = l_Workspace_1.Map:FindFirstChild(name)
+                if isle and isle:IsA("Model") then isle:Destroy() end
             end
 
-            if v870 then
-                v871.MaxSpeed = v857
-                -- ✅ Fix: bỏ dòng reset CFrame vô nghĩa
-                l_VirtualInputManager_3:SendKeyEvent(true, "W", false, game)
+            -- Bắt đầu nhấn W
+            l_VirtualInputManager_3:SendKeyEvent(true, "W", false, game)
 
-                for _, v876 in pairs(l_Workspace_1.Boats:GetDescendants()) do
-                    if v876:IsA("BasePart") then
-                        v876.CanCollide = false
-                    end
-                end
-
-                for _, v878 in pairs(l_Character_8:GetDescendants()) do
-                    if v878:IsA("BasePart") then
-                        v878.CanCollide = false
-                    end
-                end
-
-                for _, v880 in ipairs({
-                    "ShipwreckIsland", "SandIsland", "TreeIsland",
-                    "TinyIsland", "MysticIsland", "KitsuneIsland", "FrozenDimension"
-                }) do
-                    local l_FirstChild_6 = l_Workspace_1.Map:FindFirstChild(v880)
-                    if l_FirstChild_6 and l_FirstChild_6:IsA("Model") then
-                        l_FirstChild_6:Destroy()
-                    end
-                end
+            -- Loop tìm đảo
+            while _G.AutoFindPrehistoric do
+                task.wait(0.5)
 
                 if l_Workspace_1.Map:FindFirstChild("PrehistoricIsland") then
+                    -- Dừng thuyền
                     l_VirtualInputManager_3:SendKeyEvent(false, "W", false, game)
+                    task.wait(0.3)
+
+                    -- Nhảy khỏi thuyền
+                    char = getChar()
+                    humanoid = char and char:FindFirstChild("Humanoid")
+                    if humanoid then
+                        humanoid.Sit = false
+                    end
+
+                    -- Tắt toggle → về trạng thái bình thường
                     _G.AutoFindPrehistoric = false
-                    v864 = true  -- ✅ Fix: gộp if not v864 vô nghĩa
+                    break
+                end
+
+                -- Giữ MaxSpeed liên tục (server hay reset)
+                boat = l_Workspace_1.Boats:FindFirstChild("PirateBrigade")
+                seat = boat and boat:FindFirstChild("VehicleSeat")
+                if seat then seat.MaxSpeed = v857 end
+
+                -- Bị văng khỏi ghế → ngồi lại
+                char = getChar()
+                humanoid = char and char:FindFirstChild("Humanoid")
+                if not (humanoid and humanoid.Sit) then
+                    l_VirtualInputManager_3:SendKeyEvent(false, "W", false, game)
+                    if seat then
+                        topos(seat.CFrame * CFrame.new(0, 1, 0))
+                        task.wait(1.2)
+                    end
+                    l_VirtualInputManager_3:SendKeyEvent(true, "W", false, game)
                 end
             end
-        end
-    else
-        v864 = false
+        end)
     end
 end)
 v489:AddToggle({
@@ -8868,6 +8960,22 @@ spawn(function()
         end)
     end
 end)
+local CheckCakePrince = v499:AddParagraph({
+    Title = "Cake Prince",
+    Desc = "Status: "
+})
+spawn(function()
+    while wait() do
+        pcall(function()
+            if game:GetService("ReplicatedStorage"):FindFirstChild("Cake Prince") 
+            or game:GetService("Workspace").Enemies:FindFirstChild("Cake Prince") then
+                CheckCakePrince:SetDesc("Status : ✅️")
+            else
+                CheckCakePrince:SetDesc("Status : ❌️")
+            end
+        end)
+    end
+end)
 local EliteHunter = v499:AddParagraph({
     Title = "Elite Hunter",
     Desc = "Status: "
@@ -8883,6 +8991,54 @@ spawn(function()
                 EliteHunter:SetDesc("Status : ✅️ | Killed: " .. progress)
             else
                 EliteHunter:SetDesc("Status : ❌️ | Killed: " .. progress)
+            end
+        end)
+    end
+end)
+local CheckFrozenDimension = v499:AddParagraph({
+    Title = "Frozen Dimension",
+    Desc = "Status: "
+})
+spawn(function()
+    while wait() do
+        pcall(function()
+            if game:GetService("ReplicatedStorage"):FindFirstChild("Frozen Dimension") 
+            or game:GetService("Workspace").Enemies:FindFirstChild("Frozen Dimension") then
+                CheckFrozenDimension:SetDesc("Status : ✅️")
+            else
+                CheckFrozenDimension:SetDesc("Status : ❌️")
+            end
+        end)
+    end
+end)
+local CheckMiragelsland = v499:AddParagraph({
+    Title = "Mirage Island",
+    Desc = "Status: "
+})
+spawn(function()
+    while wait() do
+        pcall(function()
+            if game:GetService("ReplicatedStorage"):FindFirstChild("Mirage Island") 
+            or game:GetService("Workspace").Enemies:FindFirstChild("Mirage Island") then
+                CheckMiragelsland:SetDesc("Status : ✅️")
+            else
+                CheckMirageIsland:SetDesc("Status : ❌️")
+            end
+        end)
+    end
+end)
+local CheckPrehistoricIsland = v499:AddParagraph({
+    Title = "Prehistoric Island",
+    Desc = "Status: "
+})
+spawn(function()
+    while wait() do
+        pcall(function()
+            if game:GetService("ReplicatedStorage"):FindFirstChild("Prehistoric lsland") 
+            or game:GetService("Workspace").Enemies:FindFirstChild("Prehistoric lsland") then
+                CheckPrehistoricIsland:SetDesc("Status : ✅️")
+            else
+                CheckrehistoricIsland:SetDesc("Status : ❌️")
             end
         end)
     end
