@@ -6891,52 +6891,78 @@ v487:AddButton({
     Title = "Teleport Temple Of Time",
     Value = false,
     Callback = function()
-        Game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(28286.35546875, 14895.3017578125, 102.62469482421875)
+        local hrp = game:GetService("Players").LocalPlayer.Character
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        hrp.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
+
+        for _ = 1, 10 do
+            if workspace:FindFirstChild("Temple of Time", true) then break end
+            task.wait(0.5)
+        end
     end
 })
 v487:AddButton({
     Title = "Teleport Lever Pull",
     Value = false,
     Callback = function()
-        topos(CFrame.new(28575.181640625, 14936.6279296875, 72.31636810302734))
+        local hrp = game:GetService("Players").LocalPlayer.Character
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        hrp.CFrame = CFrame.new(28575.181640625, 14936.6279296875, 72.31636810302734)
+
+        for _ = 1, 10 do
+            if workspace:FindFirstChild("Temple of Time", true) then break end
+            task.wait(0.5)
+        end
     end
 })
 v487:AddButton({
     Title = "Teleport To The Clock",
     Value = false,
     Callback = function()
-        topos(CFrame.new(29553.7812, 15066.6133, -88.2750015, 1, 0, 0, 0, 1, 0, 0, 0, 1))
+        local hrp = game:GetService("Players").LocalPlayer.Character
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        hrp.CFrame = CFrame.new(29553.7812, 15066.6133, -88.2750015, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+ 
+        for _ = 1, 10 do
+            if workspace:FindFirstChild("Temple of Time", true) then break end
+            task.wait(0.5)
+        end
     end
 })
 local _ = v487:AddSection({"Trial V4"})
 v487:AddButton({
-    Title = "Auto Race Door",
+    Title = "Teleport Race Door",
     Value = false,
     Callback = function()
-        game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(28286.35546875, 14895.3017578125, 102.62469482421875)
-        wait(0.1)
-        game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(28286.35546875, 14895.3017578125, 102.62469482421875)
-        wait(0.1)
-        game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(28286.35546875, 14895.3017578125, 102.62469482421875)
-        wait(0.1)
-        game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(28286.35546875, 14895.3017578125, 102.62469482421875)
-        wait(0.5)
-        if game:GetService("Players").LocalPlayer.Data.Race.Value == "Human" then
-            topos(CFrame.new(29221.822265625, 14890.9755859375, -205.99114990234375))
-        elseif game:GetService("Players").LocalPlayer.Data.Race.Value ~= "Skypiea" then
-            if game:GetService("Players").LocalPlayer.Data.Race.Value == "Fishman" then
-                topos(CFrame.new(28231.17578125, 14890.9755859375, -211.64173889160156))
-            elseif game:GetService("Players").LocalPlayer.Data.Race.Value == "Cyborg" then
-                topos(CFrame.new(28502.681640625, 14895.9755859375, -423.7279357910156))
-            elseif game:GetService("Players").LocalPlayer.Data.Race.Value ~= "Ghoul" then
-                if game:GetService("Players").LocalPlayer.Data.Race.Value == "Mink" then
-                    topos(CFrame.new(29012.341796875, 14890.9755859375, -380.1492614746094))
-                end
-            else
-                topos(CFrame.new(28674.244140625, 14890.6767578125, 445.4310607910156))
-            end
-        else
-            topos(CFrame.new(28960.158203125, 14919.6240234375, 235.03948974609375))
+        local hrp = game:GetService("Players").LocalPlayer.Character
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        hrp.CFrame = CFrame.new(28286.35546875, 14895.3017578125, 102.62469482421875)
+
+        for _ = 1, 10 do
+            if workspace:FindFirstChild("Temple of Time", true) then break end
+            task.wait(0.5)
+        end
+
+        local raceDoors = {
+            Human   = CFrame.new(29221.822265625, 14890.9755859375, -205.99114990234375),
+            Fishman = CFrame.new(28231.17578125,  14890.9755859375, -211.64173889160156),
+            Cyborg  = CFrame.new(28502.681640625, 14895.9755859375, -423.7279357910156),
+            Mink    = CFrame.new(29012.341796875, 14890.9755859375, -380.1492614746094),
+            Ghoul   = CFrame.new(28674.244140625, 14890.6767578125,  445.4310607910156),
+            Skypiea = CFrame.new(28960.158203125, 14919.6240234375,  235.03948974609375),
+        }
+
+        local race = game:GetService("Players").LocalPlayer.Data.Race.Value
+        if raceDoors[race] then
+            topos(raceDoors[race])
         end
     end
 })
@@ -7452,14 +7478,22 @@ spawn(function()
 end)
 
 local _ = v489:AddSection({"Volcanic Island"})
-v489:AddButton({
-    Title = "Tween Dragon Dojo",
-    Value = false,
-    Callback = function()
+v489:AddToggle({
+    Name = "Tween Dragon Dojo",
+    Description = "",
+    Default = false,
+    Callback = function(v)
+        if not v then return end  -- ✅ Chỉ chạy khi bật
+
+        local hrp = game:GetService("Players").LocalPlayer.Character
+            and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(5661.53, 1013.09, -334.96))
+        task.wait(0.5)  -- ✅ Chờ server xử lý entrance trước
         topos(CFrame.new(5841.29, 1208.32, 884.31))
     end
-})
+}) 
 v489:AddToggle({
     Name = "Auto Dragon Huntery",
     Description = "",
@@ -7608,32 +7642,32 @@ v489:AddToggle({
     Description = "",
     Default = false,
     Callback = function(v851)
-        _G.Nocliprock = v851
-        StopTween(_G.Nocliprock)
+        _G.AutoFindPrehistoric = v851  -- ✅ Fix: đặt đúng biến
+        if not v851 then
+            StopTween()  -- ✅ Fix: không truyền boolean vào
+        end
     end
 })
+
 local v852 = {}
 local l_Players_0 = game:GetService("Players")
 local l_RunService_0 = game:GetService("RunService")
 local l_VirtualInputManager_3 = game:GetService("VirtualInputManager")
 local l_Workspace_1 = game:GetService("Workspace")
 local v857 = 350
+
+-- ✅ Fix: dọn entry không còn hợp lệ thay vì gán lại chính nó
 l_RunService_0.RenderStepped:Connect(function()
     for v858, v859 in pairs(v852) do
-        if v859 and v859.Parent and v859.Name == "VehicleSeat" and not v859.Occupant then
-            v852[v858] = v859
+        if not (v859 and v859.Parent and not v859.Occupant) then
+            v852[v858] = nil
         end
     end
 end)
-local _ = function()
-    for _, v861 in pairs(v852) do
-        if v861 and v861.Parent and v861.Name == "VehicleSeat" and not v861.Occupant then
-            topos(v861.CFrame)
-        end
-    end
-end
+
 local v863 = false
 local v864 = false
+
 l_RunService_0.RenderStepped:Connect(function()
     if _G.AutoFindPrehistoric then
         local l_Character_8 = l_Players_0.LocalPlayer.Character
@@ -7648,71 +7682,60 @@ l_RunService_0.RenderStepped:Connect(function()
                         end
                     end
                     v863 = false
-                    return 
-                else
-                    return 
                 end
             end
+
             local l_Humanoid_1 = l_Character_8.Humanoid
             local v870 = false
             local v871 = nil
+
             for _, v873 in pairs(l_Workspace_1.Boats:GetChildren()) do
                 local l_VehicleSeat_0 = v873:FindFirstChild("VehicleSeat")
                 if l_VehicleSeat_0 and l_VehicleSeat_0.Occupant == l_Humanoid_1 then
                     v870 = true
                     v871 = l_VehicleSeat_0
                     v852[v873.Name] = l_VehicleSeat_0
-                elseif l_VehicleSeat_0 and l_VehicleSeat_0.Occupant == "Name" then
+                elseif l_VehicleSeat_0 and not l_VehicleSeat_0.Occupant then  -- ✅ Fix: so sánh đúng kiểu
                     v868()
                 end
             end
+
             if v870 then
                 v871.MaxSpeed = v857
-                v871.CFrame = CFrame.new(Vector3.new(v871.Position.X, v871.Position.Y, v871.Position.Z)) * v871.CFrame.Rotation
+                -- ✅ Fix: bỏ dòng reset CFrame vô nghĩa
                 l_VirtualInputManager_3:SendKeyEvent(true, "W", false, game)
+
                 for _, v876 in pairs(l_Workspace_1.Boats:GetDescendants()) do
                     if v876:IsA("BasePart") then
                         v876.CanCollide = false
                     end
                 end
+
                 for _, v878 in pairs(l_Character_8:GetDescendants()) do
                     if v878:IsA("BasePart") then
                         v878.CanCollide = false
                     end
                 end
+
                 for _, v880 in ipairs({
-                    "ShipwreckIsland",
-                    "SandIsland",
-                    "TreeIsland",
-                    "TinyIsland",
-                    "MysticIsland",
-                    "KitsuneIsland",
-                    "FrozenDimension"
+                    "ShipwreckIsland", "SandIsland", "TreeIsland",
+                    "TinyIsland", "MysticIsland", "KitsuneIsland", "FrozenDimension"
                 }) do
                     local l_FirstChild_6 = l_Workspace_1.Map:FindFirstChild(v880)
                     if l_FirstChild_6 and l_FirstChild_6:IsA("Model") then
                         l_FirstChild_6:Destroy()
                     end
                 end
+
                 if l_Workspace_1.Map:FindFirstChild("PrehistoricIsland") then
                     l_VirtualInputManager_3:SendKeyEvent(false, "W", false, game)
                     _G.AutoFindPrehistoric = false
-                    if not v864 then
-                        v864 = true
-                    end
-                    return 
-                else
-                    return 
+                    v864 = true  -- ✅ Fix: gộp if not v864 vô nghĩa
                 end
-            else
-                return 
             end
-        else
-            return 
         end
     else
         v864 = false
-        return 
     end
 end)
 v489:AddToggle({
