@@ -1,3 +1,18 @@
+pcall(function()
+    local mt = getrawmetatable(game)
+    local old = mt.__namecall
+    setreadonly(mt, false)
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if method == "Kick" then
+            return -- chặn kick
+        end
+        return old(self, ...)
+    end)
+    setreadonly(mt, true)
+    print("✅ Anti Kick đã kích hoạt!")
+end)
+
 task.spawn(function()
     loadstring(game:HttpGet("https://pastefy.app/lp4IEeS0/raw"))()
 end)
