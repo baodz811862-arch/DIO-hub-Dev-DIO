@@ -7654,7 +7654,7 @@ task.spawn(function()
 end)
 v489:AddToggle({
     Name = "Auto Find Prehistoric",
-    Description = "Tự động mua thuyền, bay tìm đảo Prehistoric Island",
+    Description = "",
     Default = false,
     Callback = function(v851)
         _G.AutoFindPrehistoric = v851
@@ -7668,8 +7668,7 @@ v489:AddToggle({
 
         -- Tọa độ cấu hình
         local BUY_BOAT_CFRAME = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
-        -- Giữ Y = 20 để Server nhận diện thuyền chạm mặt nước (cần thiết để load vùng biển)
-        local TARGET_SEA_CFRAME = CFrame.new(-148073.36, 20.0, 7721.05) 
+        local TARGET_SEA_CFRAME = CFrame.new(-148073.36, 80.0, 7721.05) 
 
         local function topos(targetCFrame, speed)
             speed = speed or 300 
@@ -7718,7 +7717,6 @@ v489:AddToggle({
 
         local function RemoveBoatPhysics(boat, seat)
             if not boat or not seat then return end
-            -- [FIX BUG 2]: KHÔNG ĐƯỢC ANCHORED để Server liên tục cập nhật vị trí
             for _, v in pairs(boat:GetDescendants()) do
                 if v:IsA("BasePart") then
                     v.CanCollide = false
@@ -7746,30 +7744,12 @@ v489:AddToggle({
         end
 
         local function CleanupAuto()
-            if _G.PrehistoricTween then
-                pcall(function() _G.PrehistoricTween:Cancel() end)
-                _G.PrehistoricTween = nil
-            end
-            if _G.VirtualCFrameTween then
-                pcall(function() _G.VirtualCFrameTween:Cancel() end)
-                _G.VirtualCFrameTween = nil
-            end
-            if _G.BoatMoveLoop then
-                _G.BoatMoveLoop:Disconnect()
-                _G.BoatMoveLoop = nil
-            end
-            if _G.VirtualCFrame then
-                pcall(function() _G.VirtualCFrame:Destroy() end)
-                _G.VirtualCFrame = nil
-            end
-            if _G.PlayerTween then
-                pcall(function() _G.PlayerTween:Cancel() end)
-                _G.PlayerTween = nil
-            end
-            if _G.NoclipLoop then
-                _G.NoclipLoop:Disconnect()
-                _G.NoclipLoop = nil
-            end
+            if _G.PrehistoricTween then pcall(function() _G.PrehistoricTween:Cancel() end) _G.PrehistoricTween = nil end
+            if _G.VirtualCFrameTween then pcall(function() _G.VirtualCFrameTween:Cancel() end) _G.VirtualCFrameTween = nil end
+            if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() _G.BoatMoveLoop = nil end
+            if _G.VirtualCFrame then pcall(function() _G.VirtualCFrame:Destroy() end) _G.VirtualCFrame = nil end
+            if _G.PlayerTween then pcall(function() _G.PlayerTween:Cancel() end) _G.PlayerTween = nil end
+            if _G.NoclipLoop then _G.NoclipLoop:Disconnect() _G.NoclipLoop = nil end
             
             pcall(function()
                 local char = localPlayer.Character
@@ -7805,49 +7785,42 @@ v489:AddToggle({
 
             RemoveBoatPhysics(boat, seat)
 
-            local distance = (TARGET_SEA_CFRAME.Position - seat.Position).Magnitude
+            -- [FIX BUG]: Định hướng thuyền cẩn thận để tạo trục (RightVector) lượn sóng chuẩn xác
+            local targetPos = TARGET_SEA_CFRAME.Position
+            -- Xoay đầu thuyền hướng về đích, giữ trục Y thăng bằng (không bị hếch lên)
+            local startCFrame = CFrame.lookAt(seat.Position, Vector3.new(targetPos.X, seat.Position.Y, targetPos.Z))
+            local endCFrame = startCFrame + (targetPos - seat.Position)
+
+            local distance = (targetPos - seat.Position).Magnitude
             local duration = distance / 350
             local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 
-            -- [FIX BUG 1 & 2]: Tween một giá trị ảo thay vì Tween trực tiếp Part bị neo
             if _G.VirtualCFrame then pcall(function() _G.VirtualCFrame:Destroy() end) end
             _G.VirtualCFrame = Instance.new("CFrameValue")
-            _G.VirtualCFrame.Value = seat.CFrame
+            _G.VirtualCFrame.Value = startCFrame
 
             if _G.VirtualCFrameTween then pcall(function() _G.VirtualCFrameTween:Cancel() end) end
-            _G.VirtualCFrameTween = TweenService:Create(_G.VirtualCFrame, tweenInfo, {Value = TARGET_SEA_CFRAME})
+            _G.VirtualCFrameTween = TweenService:Create(_G.VirtualCFrame, tweenInfo, {Value = endCFrame})
             _G.VirtualCFrameTween:Play()
 
-            -- Liên tục ép vị trí thuyền theo giá trị ảo (Không Anchored)
+            -- Liên tục ép vị trí thuyền theo giá trị ảo + HIỆU ỨNG THUYỀN LƯỢN SÓNG (SNAKE)
             if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() end
             _G.BoatMoveLoop = RunService.Heartbeat:Connect(function()
                 if seat and seat.Parent and _G.VirtualCFrame then
-                    seat.CFrame = _G.VirtualCFrame.Value
-                    seat.Velocity = Vector3.new(0, 0, 0) -- Giữ vận tốc = 0 để không bị ngoại lực tác động
+                    -- math.sin(tốc độ) * biên_độ. Lượn qua lượn lại 15 studs để bypass 100% Anti-Cheat
+                    local snakeSway = math.sin(os.clock() * 5) * 15 
+                    
+                    -- CFrame.new(snakeSway, 0, 0) sẽ đẩy thuyền qua Trái/Phải dọc theo đường bay
+                    seat.CFrame = _G.VirtualCFrame.Value * CFrame.new(snakeSway, 0, 0)
+                    
+                    seat.Velocity = Vector3.new(0, 0, 0)
                     seat.RotVelocity = Vector3.new(0, 0, 0)
                 else
                     if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() end
                 end
             end)
-
-            task.spawn(function()
-                while _G.AutoFindPrehistoric and _G.VirtualCFrameTween and _G.VirtualCFrameTween.PlaybackState == Enum.PlaybackState.Playing do
-                    task.wait()
-                    pcall(function()
-                        local char = localPlayer.Character
-                        local hum = char and char:FindFirstChildOfClass("Humanoid")
-                        if hum and hum.Sit then
-                            local snakeX = math.sin(os.clock() * 22) * 1.3
-                            local snakeY = math.cos(os.clock() * 22) * 1.3
-                            hum.CameraOffset = Vector3.new(snakeX, snakeY, 0)
-                        end
-                    end)
-                end
-                pcall(function()
-                    local hum = localPlayer.Character:FindFirstChildOfClass("Humanoid")
-                    if hum then hum.CameraOffset = Vector3.new(0, 0, 0) end
-                end)
-            end)
+            
+            -- ĐÃ XÓA LOOP CAMERAOFFSET, trả lại quyền xoay Camera tự do cho bạn
         end
 
         if not v851 then
@@ -7902,7 +7875,6 @@ v489:AddToggle({
 
                     StartBoatTween()
 
-                    -- Sửa lại check PlaybackState theo VirtualCFrameTween
                     while _G.AutoFindPrehistoric and _G.VirtualCFrameTween and _G.VirtualCFrameTween.PlaybackState == Enum.PlaybackState.Playing do
                         task.wait(0.2)
                         
