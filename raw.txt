@@ -7654,7 +7654,7 @@ task.spawn(function()
 end)
 v489:AddToggle({
     Name = "Auto Find Prehistoric",
-    Description = "",
+    Description = "Tự động mua thuyền, bay tìm đảo Prehistoric Island",
     Default = false,
     Callback = function(v851)
         _G.AutoFindPrehistoric = v851
@@ -7663,19 +7663,30 @@ v489:AddToggle({
         local l_Workspace_1         = game:GetService("Workspace")
         local l_ReplicatedStorage_0 = game:GetService("ReplicatedStorage")
         local TweenService          = game:GetService("TweenService")
+        local RunService            = game:GetService("RunService")
         local localPlayer           = l_Players_0.LocalPlayer
 
         -- Tọa độ cấu hình
         local BUY_BOAT_CFRAME = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
-        local TARGET_SEA_CFRAME = CFrame.new(-148073.36, 45.0, 7721.05) -- Đã chỉnh Y = 45 để bay trên biển
+        -- [FIX BUG 2]: Hạ Y xuống 20 để chạm vùng nhận diện mặt nước (Sea 1,2,3,4,5,6)
+        local TARGET_SEA_CFRAME = CFrame.new(-148073.36, 20.0, 7721.05) 
 
-        -- Hàm dịch chuyển/Tween nhân vật
-        local function topos(targetCFrame)
-            pcall(function()
-                local char = localPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then hrp.CFrame = targetCFrame end
-            end)
+        -- [FIX BUG 1]: Hàm bay (Tween) thay vì Teleport tức thời
+        local function topos(targetCFrame, speed)
+            speed = speed or 300 -- Tốc độ bay của người
+            local char = localPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local distance = (hrp.Position - targetCFrame.Position).Magnitude
+                local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
+                
+                if _G.PlayerTween then _G.PlayerTween:Cancel() end
+                _G.PlayerTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+                _G.PlayerTween:Play()
+                
+                -- Đợi cho đến khi bay tới nơi
+                _G.PlayerTween.Completed:Wait()
+            end
         end
 
         -- Hàm tìm kiếm đúng thuyền của mình
@@ -7745,11 +7756,19 @@ v489:AddToggle({
             end
         end
 
-        -- Dọn dẹp tài nguyên và hiệu ứng (Yêu cầu 6)
+        -- Dọn dẹp tài nguyên và hiệu ứng
         local function CleanupAuto()
             if _G.PrehistoricTween then
                 pcall(function() _G.PrehistoricTween:Cancel() end)
                 _G.PrehistoricTween = nil
+            end
+            if _G.PlayerTween then
+                pcall(function() _G.PlayerTween:Cancel() end)
+                _G.PlayerTween = nil
+            end
+            if _G.NoclipLoop then
+                _G.NoclipLoop:Disconnect()
+                _G.NoclipLoop = nil
             end
             
             pcall(function()
@@ -7767,7 +7786,7 @@ v489:AddToggle({
             end)
         end
 
-        -- Tìm kiếm đảo Prehistoric Island ẩn ẩn
+        -- Tìm kiếm đảo Prehistoric Island
         local function FindPrehistoricIsland()
             local mapIsle = l_Workspace_1.Map:FindFirstChild("PrehistoricIsland")
             if mapIsle then return mapIsle end
@@ -7801,7 +7820,7 @@ v489:AddToggle({
             _G.PrehistoricTween = TweenService:Create(seat, tweenInfo, {CFrame = TARGET_SEA_CFRAME})
             _G.PrehistoricTween:Play()
 
-            -- Luồng xử lý Camera Snake mượt mà, tự do xoay góc nhìn (Yêu cầu 6)
+            -- Luồng xử lý Camera Snake mượt mà
             task.spawn(function()
                 while _G.AutoFindPrehistoric and _G.PrehistoricTween and _G.PrehistoricTween.PlaybackState == Enum.PlaybackState.Playing do
                     task.wait()
@@ -7809,7 +7828,6 @@ v489:AddToggle({
                         local char = localPlayer.Character
                         local hum = char and char:FindFirstChildOfClass("Humanoid")
                         if hum and hum.Sit then
-                            -- Tạo độ lắc lư cho cam thông qua CameraOffset
                             local snakeX = math.sin(os.clock() * 22) * 1.3
                             local snakeY = math.cos(os.clock() * 22) * 1.3
                             hum.CameraOffset = Vector3.new(snakeX, snakeY, 0)
@@ -7829,6 +7847,19 @@ v489:AddToggle({
             return
         end
         
+        -- Bật NoClip an toàn (chạy ngầm) để không bị kẹt khi bay
+        if not _G.NoclipLoop then
+            _G.NoclipLoop = RunService.Stepped:Connect(function()
+                if _G.AutoFindPrehistoric and localPlayer.Character then
+                    for _, part in pairs(localPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end
+        
         -- TRƯỜNG HỢP USER BẬT TOGGLE (Luồng chính)
         task.spawn(function()
             while _G.AutoFindPrehistoric do
@@ -7840,25 +7871,17 @@ v489:AddToggle({
                     -- BƯỚC 1 & 2: Kiểm tra xem có cần mua thuyền không
                     local boat = GetMyBoat()
                     if not boat then
-                        -- Không có thuyền sẵn -> Tween đến điểm mua (Yêu cầu 1)
-                        topos(BUY_BOAT_CFRAME)
+                        -- Bay từ từ tới điểm mua (Yêu cầu 1)
+                        topos(BUY_BOAT_CFRAME, 350)
                         
-                        -- Chờ nhân vật tới bến
-                        local t = 0
-                        while _G.AutoFindPrehistoric and t < 10 do
-                            task.wait(0.2); t += 0.2
-                            local hrp = char:FindFirstChild("HumanoidRootPart")
-                            if hrp and (hrp.Position - BUY_BOAT_CFRAME.Position).Magnitude <= 15 then
-                                break
-                            end
-                        end
-
                         if not _G.AutoFindPrehistoric then return end
                         
-                        -- Gọi Remote mua thuyền PirateBrigade
-                        l_ReplicatedStorage_0.Remotes.Remotes.CommF_:InvokeServer("BuyBoat", "PirateBrigade")
-                        task.wait(2) -- Chờ game phản hồi 2 giây (Yêu cầu 2)
+                        -- [FIX BUG 1.1]: Gọi Remote mua thuyền đúng chuẩn (Xóa 1 chữ Remotes bị thừa)
+                        pcall(function()
+                            l_ReplicatedStorage_0.Remotes.CommF_:InvokeServer("BuyBoat", "PirateBrigade")
+                        end)
                         
+                        task.wait(2) -- Chờ game phản hồi 2 giây
                         boat = GetMyBoat()
                     end
 
@@ -7868,7 +7891,7 @@ v489:AddToggle({
 
                     -- BƯỚC 3: Tween vào chỗ ngồi lái thuyền
                     if not humanoid.Sit or humanoid.SeatPart ~= seat then
-                        topos(seat.CFrame * CFrame.new(0, 1.5, 0))
+                        topos(seat.CFrame * CFrame.new(0, 1.5, 0), 300)
                         task.wait(0.5)
                         seat:Sit(humanoid)
                         task.wait(1)
@@ -7876,7 +7899,7 @@ v489:AddToggle({
 
                     if not _G.AutoFindPrehistoric or not humanoid.Sit then return end
 
-                    -- BƯỚC 4: Kích hoạt xóa vật cản noclip & Khởi hành bay thẳng hướng la bàn
+                    -- BƯỚC 4: Khởi hành bay thẳng hướng la bàn
                     StartBoatTween()
 
                     -- BƯỚC 5 & 6: Vòng lặp quét điều kiện thời gian thực khi đang bay
@@ -7884,13 +7907,10 @@ v489:AddToggle({
                         task.wait(0.2)
                         
                         local currentSeat = humanoid.SeatPart
-                        if not currentSeat then break end -- Bị văng khỏi ghế thì loop lại quy trình quyét ghế
+                        if not currentSeat then break end -- Bị văng khỏi ghế thì loop lại quy trình
 
-                        -- Giữ NoClip liên tục cho người và tàu tránh bị văng lag
+                        -- Giữ NoClip thuyền
                         pcall(function()
-                            for _, part in pairs(char:GetDescendants()) do
-                                if part:IsA("BasePart") then part.CanCollide = false end
-                            end
                             for _, part in pairs(boat:GetDescendants()) do
                                 if part:IsA("BasePart") then part.CanCollide = false end
                             end
@@ -7901,13 +7921,12 @@ v489:AddToggle({
                         if prehistoric then
                             local pPart = prehistoric:IsA("Model") and prehistoric.PrimaryPart or prehistoric:FindFirstChildWhichIsA("BasePart")
                             if pPart and (pPart.Position - currentSeat.Position).Magnitude <= 3500 then
-                                -- Phát hiện thấy trong tầm quét gần -> dừng thuyền hạ cánh
                                 _G.AutoFindPrehistoric = false
                                 break
                             end
                         end
 
-                        -- Điều kiện B: Có BẤT KỲ đảo nào khác xuất hiện trong phạm vi dưới 1000 studs (Yêu cầu 6)
+                        -- Điều kiện B: Tránh đảo thường
                         local mapFolder = l_Workspace_1:FindFirstChild("Map")
                         if mapFolder then
                             for _, island in pairs(mapFolder:GetChildren()) do
@@ -7916,17 +7935,16 @@ v489:AddToggle({
                                     if islandPart then
                                         local distanceToIsland = (islandPart.Position - currentSeat.Position).Magnitude
                                         
-                                        -- Nếu gặp đảo thường chặn đường dưới 1000 studs
                                         if distanceToIsland <= 1000 and island.Name ~= "PrehistoricIsland" and island.Name ~= "Prehistoric Island" then
                                             if _G.PrehistoricTween then _G.PrehistoricTween:Cancel() end
                                             
-                                            humanoid.Sit = false -- Nhảy khỏi thuyền
+                                            humanoid.Sit = false 
                                             task.wait(0.1)
-                                            -- Bay lên cao hẳn 50m tránh kẹt đảo
+                                            -- Bay lên cao tránh kẹt đảo
                                             local hrp = char:FindFirstChild("HumanoidRootPart")
                                             if hrp then hrp.CFrame = hrp.CFrame + Vector3.new(0, 50, 0) end
                                             
-                                            _G.AutoFindPrehistoric = false -- Dừng script bảo an
+                                            _G.AutoFindPrehistoric = false 
                                             CleanupAuto()
                                             return
                                         end
@@ -7945,7 +7963,6 @@ v489:AddToggle({
                 task.wait(1)
             end
             
-            -- Đảm bảo gỡ bỏ hiệu ứng hoàn toàn khi dừng vòng lặp
             CleanupAuto()
         end)
     end
