@@ -7668,12 +7668,11 @@ v489:AddToggle({
 
         -- Tọa độ cấu hình
         local BUY_BOAT_CFRAME = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
-        -- [FIX BUG 2]: Hạ Y xuống 20 để chạm vùng nhận diện mặt nước (Sea 1,2,3,4,5,6)
+        -- Giữ Y = 20 để Server nhận diện thuyền chạm mặt nước (cần thiết để load vùng biển)
         local TARGET_SEA_CFRAME = CFrame.new(-148073.36, 20.0, 7721.05) 
 
-        -- [FIX BUG 1]: Hàm bay (Tween) thay vì Teleport tức thời
         local function topos(targetCFrame, speed)
-            speed = speed or 300 -- Tốc độ bay của người
+            speed = speed or 300 
             local char = localPlayer.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             if hrp then
@@ -7684,23 +7683,19 @@ v489:AddToggle({
                 _G.PlayerTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
                 _G.PlayerTween:Play()
                 
-                -- Đợi cho đến khi bay tới nơi
                 _G.PlayerTween.Completed:Wait()
             end
         end
 
-        -- Hàm tìm kiếm đúng thuyền của mình
         local function GetMyBoat()
             if not localPlayer then return nil end
             
-            -- Kiểm tra nếu đang ngồi sẵn trên 1 thuyền bất kỳ (Yêu cầu 7)
             local char = localPlayer.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             if hum and hum.Sit and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
                 return hum.SeatPart:FindFirstAncestorOfClass("Model")
             end
 
-            -- Tìm theo tag Owner/Player
             for _, b in pairs(l_Workspace_1.Boats:GetChildren()) do
                 if b.Name == "PirateBrigade" then
                     local owner = b:FindFirstChild("Owner") or b:FindFirstChild("Player")
@@ -7710,7 +7705,6 @@ v489:AddToggle({
                 end
             end
             
-            -- Tìm theo khoảng cách bến thuyền gần nhất
             for _, b in pairs(l_Workspace_1.Boats:GetChildren()) do
                 if b.Name == "PirateBrigade" then
                     local seat = b:FindFirstChild("VehicleSeat") or b.PrimaryPart
@@ -7722,18 +7716,14 @@ v489:AddToggle({
             return nil
         end
 
-        -- Xử lý loại bỏ vật lý chuẩn (Không làm rã thuyền)
         local function RemoveBoatPhysics(boat, seat)
             if not boat or not seat then return end
-            seat.CanCollide = false
-            seat.Anchored = true -- Chỉ neo duy nhất ghế lái để chạy Tween
-
+            -- [FIX BUG 2]: KHÔNG ĐƯỢC ANCHORED để Server liên tục cập nhật vị trí
             for _, v in pairs(boat:GetDescendants()) do
                 if v:IsA("BasePart") then
                     v.CanCollide = false
+                    v.Anchored = false 
                     if v ~= seat then
-                        v.Anchored = false -- Mở neo các part khác để di chuyển theo ghế
-                        -- Tạo mối hàn cứng cố định vào ghế lái nếu chưa có
                         if not v:FindFirstChildWhichIsA("WeldConstraint") and not v:FindFirstChildWhichIsA("Weld") then
                             local weld = Instance.new("WeldConstraint")
                             weld.Part0 = seat
@@ -7745,7 +7735,6 @@ v489:AddToggle({
             end
         end
 
-        -- Khôi phục vật lý gốc khi tắt hack
         local function RestoreBoatPhysics(boat)
             if not boat then return end
             for _, v in pairs(boat:GetDescendants()) do
@@ -7756,11 +7745,22 @@ v489:AddToggle({
             end
         end
 
-        -- Dọn dẹp tài nguyên và hiệu ứng
         local function CleanupAuto()
             if _G.PrehistoricTween then
                 pcall(function() _G.PrehistoricTween:Cancel() end)
                 _G.PrehistoricTween = nil
+            end
+            if _G.VirtualCFrameTween then
+                pcall(function() _G.VirtualCFrameTween:Cancel() end)
+                _G.VirtualCFrameTween = nil
+            end
+            if _G.BoatMoveLoop then
+                _G.BoatMoveLoop:Disconnect()
+                _G.BoatMoveLoop = nil
+            end
+            if _G.VirtualCFrame then
+                pcall(function() _G.VirtualCFrame:Destroy() end)
+                _G.VirtualCFrame = nil
             end
             if _G.PlayerTween then
                 pcall(function() _G.PlayerTween:Cancel() end)
@@ -7776,7 +7776,7 @@ v489:AddToggle({
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
                 if hum then
                     hum.Sit = false
-                    hum.CameraOffset = Vector3.new(0, 0, 0) -- Trả camera về gốc
+                    hum.CameraOffset = Vector3.new(0, 0, 0)
                 end
             end)
             
@@ -7786,7 +7786,6 @@ v489:AddToggle({
             end)
         end
 
-        -- Tìm kiếm đảo Prehistoric Island
         local function FindPrehistoricIsland()
             local mapIsle = l_Workspace_1.Map:FindFirstChild("PrehistoricIsland")
             if mapIsle then return mapIsle end
@@ -7799,30 +7798,40 @@ v489:AddToggle({
             return nil
         end
 
-        -- Bắt đầu Tween Thuyền & Người bay đi
         local function StartBoatTween()
-            if _G.PrehistoricTween then
-                pcall(function() _G.PrehistoricTween:Cancel() end)
-                _G.PrehistoricTween = nil
-            end
-
             local boat = GetMyBoat()
             local seat = boat and boat:FindFirstChild("VehicleSeat")
             if not boat or not seat then return end
 
             RemoveBoatPhysics(boat, seat)
 
-            -- Tính toán tốc độ bay cân bằng (~350 studs/s)
             local distance = (TARGET_SEA_CFRAME.Position - seat.Position).Magnitude
             local duration = distance / 350
             local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 
-            _G.PrehistoricTween = TweenService:Create(seat, tweenInfo, {CFrame = TARGET_SEA_CFRAME})
-            _G.PrehistoricTween:Play()
+            -- [FIX BUG 1 & 2]: Tween một giá trị ảo thay vì Tween trực tiếp Part bị neo
+            if _G.VirtualCFrame then pcall(function() _G.VirtualCFrame:Destroy() end) end
+            _G.VirtualCFrame = Instance.new("CFrameValue")
+            _G.VirtualCFrame.Value = seat.CFrame
 
-            -- Luồng xử lý Camera Snake mượt mà
+            if _G.VirtualCFrameTween then pcall(function() _G.VirtualCFrameTween:Cancel() end) end
+            _G.VirtualCFrameTween = TweenService:Create(_G.VirtualCFrame, tweenInfo, {Value = TARGET_SEA_CFRAME})
+            _G.VirtualCFrameTween:Play()
+
+            -- Liên tục ép vị trí thuyền theo giá trị ảo (Không Anchored)
+            if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() end
+            _G.BoatMoveLoop = RunService.Heartbeat:Connect(function()
+                if seat and seat.Parent and _G.VirtualCFrame then
+                    seat.CFrame = _G.VirtualCFrame.Value
+                    seat.Velocity = Vector3.new(0, 0, 0) -- Giữ vận tốc = 0 để không bị ngoại lực tác động
+                    seat.RotVelocity = Vector3.new(0, 0, 0)
+                else
+                    if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() end
+                end
+            end)
+
             task.spawn(function()
-                while _G.AutoFindPrehistoric and _G.PrehistoricTween and _G.PrehistoricTween.PlaybackState == Enum.PlaybackState.Playing do
+                while _G.AutoFindPrehistoric and _G.VirtualCFrameTween and _G.VirtualCFrameTween.PlaybackState == Enum.PlaybackState.Playing do
                     task.wait()
                     pcall(function()
                         local char = localPlayer.Character
@@ -7841,13 +7850,11 @@ v489:AddToggle({
             end)
         end
 
-        -- TRƯỜNG HỢP USER TẮT TOGGLE
         if not v851 then
             CleanupAuto()
             return
         end
         
-        -- Bật NoClip an toàn (chạy ngầm) để không bị kẹt khi bay
         if not _G.NoclipLoop then
             _G.NoclipLoop = RunService.Stepped:Connect(function()
                 if _G.AutoFindPrehistoric and localPlayer.Character then
@@ -7860,7 +7867,6 @@ v489:AddToggle({
             end)
         end
         
-        -- TRƯỜNG HỢP USER BẬT TOGGLE (Luồng chính)
         task.spawn(function()
             while _G.AutoFindPrehistoric do
                 local success, err = pcall(function()
@@ -7868,20 +7874,16 @@ v489:AddToggle({
                     local humanoid = char and char:FindFirstChildOfClass("Humanoid")
                     if not humanoid then return end
 
-                    -- BƯỚC 1 & 2: Kiểm tra xem có cần mua thuyền không
                     local boat = GetMyBoat()
                     if not boat then
-                        -- Bay từ từ tới điểm mua (Yêu cầu 1)
                         topos(BUY_BOAT_CFRAME, 350)
-                        
                         if not _G.AutoFindPrehistoric then return end
                         
-                        -- [FIX BUG 1.1]: Gọi Remote mua thuyền đúng chuẩn (Xóa 1 chữ Remotes bị thừa)
                         pcall(function()
                             l_ReplicatedStorage_0.Remotes.CommF_:InvokeServer("BuyBoat", "PirateBrigade")
                         end)
                         
-                        task.wait(2) -- Chờ game phản hồi 2 giây
+                        task.wait(2) 
                         boat = GetMyBoat()
                     end
 
@@ -7889,7 +7891,6 @@ v489:AddToggle({
                     local seat = boat:FindFirstChild("VehicleSeat")
                     if not seat then return end
 
-                    -- BƯỚC 3: Tween vào chỗ ngồi lái thuyền
                     if not humanoid.Sit or humanoid.SeatPart ~= seat then
                         topos(seat.CFrame * CFrame.new(0, 1.5, 0), 300)
                         task.wait(0.5)
@@ -7899,24 +7900,21 @@ v489:AddToggle({
 
                     if not _G.AutoFindPrehistoric or not humanoid.Sit then return end
 
-                    -- BƯỚC 4: Khởi hành bay thẳng hướng la bàn
                     StartBoatTween()
 
-                    -- BƯỚC 5 & 6: Vòng lặp quét điều kiện thời gian thực khi đang bay
-                    while _G.AutoFindPrehistoric and _G.PrehistoricTween and _G.PrehistoricTween.PlaybackState == Enum.PlaybackState.Playing do
+                    -- Sửa lại check PlaybackState theo VirtualCFrameTween
+                    while _G.AutoFindPrehistoric and _G.VirtualCFrameTween and _G.VirtualCFrameTween.PlaybackState == Enum.PlaybackState.Playing do
                         task.wait(0.2)
                         
                         local currentSeat = humanoid.SeatPart
-                        if not currentSeat then break end -- Bị văng khỏi ghế thì loop lại quy trình
+                        if not currentSeat then break end 
 
-                        -- Giữ NoClip thuyền
                         pcall(function()
                             for _, part in pairs(boat:GetDescendants()) do
                                 if part:IsA("BasePart") then part.CanCollide = false end
                             end
                         end)
 
-                        -- Điều kiện A: Tìm thấy đảo Prehistoric Island cụ thể
                         local prehistoric = FindPrehistoricIsland()
                         if prehistoric then
                             local pPart = prehistoric:IsA("Model") and prehistoric.PrimaryPart or prehistoric:FindFirstChildWhichIsA("BasePart")
@@ -7926,7 +7924,6 @@ v489:AddToggle({
                             end
                         end
 
-                        -- Điều kiện B: Tránh đảo thường
                         local mapFolder = l_Workspace_1:FindFirstChild("Map")
                         if mapFolder then
                             for _, island in pairs(mapFolder:GetChildren()) do
@@ -7936,11 +7933,11 @@ v489:AddToggle({
                                         local distanceToIsland = (islandPart.Position - currentSeat.Position).Magnitude
                                         
                                         if distanceToIsland <= 1000 and island.Name ~= "PrehistoricIsland" and island.Name ~= "Prehistoric Island" then
-                                            if _G.PrehistoricTween then _G.PrehistoricTween:Cancel() end
+                                            if _G.VirtualCFrameTween then _G.VirtualCFrameTween:Cancel() end
                                             
                                             humanoid.Sit = false 
                                             task.wait(0.1)
-                                            -- Bay lên cao tránh kẹt đảo
+                                            
                                             local hrp = char:FindFirstChild("HumanoidRootPart")
                                             if hrp then hrp.CFrame = hrp.CFrame + Vector3.new(0, 50, 0) end
                                             
