@@ -7668,7 +7668,7 @@ v489:AddToggle({
 
         -- Tọa độ cấu hình
         local BUY_BOAT_CFRAME = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
-        local TARGET_SEA_CFRAME = CFrame.new(-148073.36, 80.0, 7721.05) 
+        local TARGET_SEA_CFRAME = CFrame.new(-148073.36, 230.0, 7721.05) 
 
         local function topos(targetCFrame, speed)
             speed = speed or 300 
