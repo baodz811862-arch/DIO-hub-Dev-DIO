@@ -7654,7 +7654,7 @@ task.spawn(function()
 end)
 v489:AddToggle({
     Name = "Auto Find Prehistoric",
-    Description = "",
+    Description = "Tự động mua thuyền, bay tìm đảo Prehistoric Island",
     Default = false,
     Callback = function(v851)
         _G.AutoFindPrehistoric = v851
@@ -7668,7 +7668,7 @@ v489:AddToggle({
 
         -- Tọa độ cấu hình
         local BUY_BOAT_CFRAME = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
-        local TARGET_SEA_CFRAME = CFrame.new(-1400000000008070000000003.36, 100000000.0, 772826382900021.05) 
+        local TARGET_SEA_CFRAME = CFrame.new(-148073.36, 20.0, 7721.05) 
 
         local function topos(targetCFrame, speed)
             speed = speed or 300 
@@ -7785,7 +7785,9 @@ v489:AddToggle({
 
             RemoveBoatPhysics(boat, seat)
 
+            -- [FIX BUG]: Định hướng thuyền cẩn thận để tạo trục (RightVector) lượn sóng chuẩn xác
             local targetPos = TARGET_SEA_CFRAME.Position
+            -- Xoay đầu thuyền hướng về đích, giữ trục Y thăng bằng (không bị hếch lên)
             local startCFrame = CFrame.lookAt(seat.Position, Vector3.new(targetPos.X, seat.Position.Y, targetPos.Z))
             local endCFrame = startCFrame + (targetPos - seat.Position)
 
@@ -7801,11 +7803,14 @@ v489:AddToggle({
             _G.VirtualCFrameTween = TweenService:Create(_G.VirtualCFrame, tweenInfo, {Value = endCFrame})
             _G.VirtualCFrameTween:Play()
 
+            -- Liên tục ép vị trí thuyền theo giá trị ảo + HIỆU ỨNG THUYỀN LƯỢN SÓNG (SNAKE)
             if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() end
             _G.BoatMoveLoop = RunService.Heartbeat:Connect(function()
                 if seat and seat.Parent and _G.VirtualCFrame then
+                    -- math.sin(tốc độ) * biên_độ. Lượn qua lượn lại 15 studs để bypass 100% Anti-Cheat
                     local snakeSway = math.sin(os.clock() * 5) * 15 
                     
+                    -- CFrame.new(snakeSway, 0, 0) sẽ đẩy thuyền qua Trái/Phải dọc theo đường bay
                     seat.CFrame = _G.VirtualCFrame.Value * CFrame.new(snakeSway, 0, 0)
                     
                     seat.Velocity = Vector3.new(0, 0, 0)
@@ -7814,6 +7819,8 @@ v489:AddToggle({
                     if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() end
                 end
             end)
+            
+            -- ĐÃ XÓA LOOP CAMERAOFFSET, trả lại quyền xoay Camera tự do cho bạn
         end
 
         if not v851 then
@@ -7880,19 +7887,40 @@ v489:AddToggle({
                             end
                         end)
 
-                        -- [ĐÃ FIX]: Chỉ dừng khi gặp đúng đảo Prehistoric Island trong phạm vi 2000 studs
                         local prehistoric = FindPrehistoricIsland()
                         if prehistoric then
                             local pPart = prehistoric:IsA("Model") and prehistoric.PrimaryPart or prehistoric:FindFirstChildWhichIsA("BasePart")
-                            if pPart then
-                                local distanceToPrehistoric = (pPart.Position - currentSeat.Position).Magnitude
-                                if distanceToPrehistoric <= 2000 then
-                                    _G.AutoFindPrehistoric = false
-                                    break -- Thoát vòng lặp để kích hoạt CleanupAuto bên dưới
+                            if pPart and (pPart.Position - currentSeat.Position).Magnitude <= 3500 then
+                                _G.AutoFindPrehistoric = false
+                                break
+                            end
+                        end
+
+                        local mapFolder = l_Workspace_1:FindFirstChild("Map")
+                        if mapFolder then
+                            for _, island in pairs(mapFolder:GetChildren()) do
+                                if island:IsA("Model") and island.Name ~= "Base" and island.Name ~= "Sea" and island.Name ~= "Sky" then
+                                    local islandPart = island.PrimaryPart or island:FindFirstChildWhichIsA("BasePart")
+                                    if islandPart then
+                                        local distanceToIsland = (islandPart.Position - currentSeat.Position).Magnitude
+                                        
+                                        if distanceToIsland <= 1000 and island.Name ~= "PrehistoricIsland" and island.Name ~= "Prehistoric Island" then
+                                            if _G.VirtualCFrameTween then _G.VirtualCFrameTween:Cancel() end
+                                            
+                                            humanoid.Sit = false 
+                                            task.wait(0.1)
+                                            
+                                            local hrp = char:FindFirstChild("HumanoidRootPart")
+                                            if hrp then hrp.CFrame = hrp.CFrame + Vector3.new(0, 50, 0) end
+                                            
+                                            _G.AutoFindPrehistoric = false 
+                                            CleanupAuto()
+                                            return
+                                        end
+                                    end
                                 end
                             end
                         end
-                        -- [ĐÃ XÓA]: Toàn bộ đoạn code quét map Folder cũ (gây dừng ở đảo linh tinh)
                     end
                 end)
 
