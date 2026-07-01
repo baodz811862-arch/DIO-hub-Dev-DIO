@@ -7666,6 +7666,34 @@ v489:AddToggle({
         local RunService            = game:GetService("RunService")
         local localPlayer           = l_Players_0.LocalPlayer
 
+        -- =========================================================================
+        -- [GIẢI PHÁP BUG 1]: TẠO GIÁ TRỊ ẢO ĐÁNH LỪA SERVER/CLIENT LÀ ĐANG Ở MẶT NƯỚC
+        -- =========================================================================
+        if not _G.SpoofedSeaLevel then
+            _G.SpoofedSeaLevel = true
+            local oldIndex
+            oldIndex = hookmetamethod(game, "__index", function(self, key)
+                -- Chỉ can thiệp khi script của game (not checkcaller) check tọa độ lúc Auto đang bật
+                if not checkcaller() and _G.AutoFindPrehistoric then
+                    if (key == "Position" or key == "CFrame") and typeof(self) == "Instance" then
+                        -- Lừa game khi nó check tọa độ của Nhân vật hoặc Ghế thuyền
+                        local name = self.Name
+                        if name == "HumanoidRootPart" or name == "VehicleSeat" then
+                            local original = oldIndex(self, key)
+                            -- Nếu đang bay cao hơn 100, trả về giá trị ảo ở Y = 20 (mặt nước)
+                            if key == "Position" and original.Y > 100 then
+                                return Vector3.new(original.X, 20, original.Z)
+                            elseif key == "CFrame" and original.Y > 100 then
+                                return CFrame.new(original.X, 20, original.Z) * original.Rotation
+                            end
+                        end
+                    end
+                end
+                return oldIndex(self, key)
+            end)
+        end
+        -- =========================================================================
+
         -- Tọa độ cấu hình
         local BUY_BOAT_CFRAME = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
         -- Đã sửa lại tọa độ đích (không để số quá dài gây lỗi tràn bộ nhớ của Roblox)
@@ -7786,7 +7814,7 @@ v489:AddToggle({
 
             RemoveBoatPhysics(boat, seat)
 
-            -- [FIX]: Force thuyền bay ở độ cao 200 (trên 150m) để vượt qua mọi chướng ngại vật
+            -- Vẫn bay ở độ cao 200, giá trị ảo Y=20 đã được xử lý bằng hook phía trên
             local flyHeight = 200 
             local targetPos = TARGET_SEA_CFRAME.Position
             
@@ -7888,14 +7916,11 @@ v489:AddToggle({
                         local prehistoric = FindPrehistoricIsland()
                         if prehistoric then
                             local pPart = prehistoric:IsA("Model") and prehistoric.PrimaryPart or prehistoric:FindFirstChildWhichIsA("BasePart")
-                            -- [FIX]: Đã chỉnh lại khoảng cách dừng thuyền thành <= 2000 studs
                             if pPart and (pPart.Position - currentSeat.Position).Magnitude <= 2000 then
                                 _G.AutoFindPrehistoric = false
                                 break
                             end
                         end
-                        
-                        -- ĐÃ XÓA TOÀN BỘ ĐOẠN CHECK VÀ DỪNG LẠI Ở CÁC ĐẢO KHÁC (mapFolder check)
                     end
                 end)
 
