@@ -7751,6 +7751,8 @@ v489:AddToggle({
             if _G.PlayerTween then pcall(function() _G.PlayerTween:Cancel() end) _G.PlayerTween = nil end
             if _G.NoclipLoop then _G.NoclipLoop:Disconnect() _G.NoclipLoop = nil end
             
+            _G.IgnoredPrehistoricIslands = nil -- Clear blacklist
+            
             pcall(function()
                 local char = localPlayer.Character
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -7766,15 +7768,40 @@ v489:AddToggle({
             end)
         end
 
-        local function FindPrehistoricIsland()
-            local mapIsle = l_Workspace_1.Map:FindFirstChild("PrehistoricIsland")
-            if mapIsle then return mapIsle end
+        -- [FIX 2]: Cập nhật hàm tìm đảo để bỏ qua các đảo nằm trong Blacklist
+        local function FindValidPrehistoricIsland()
+            local function isIgnored(isle)
+                if not _G.IgnoredPrehistoricIslands then return false end
+                for _, ignored in pairs(_G.IgnoredPrehistoricIslands) do
+                    if isle == ignored then return true end
+                end
+                return false
+            end
+
+            -- Tìm trong thư mục Map
+            local mapFolder = l_Workspace_1:FindFirstChild("Map")
+            if mapFolder then
+                for _, child in pairs(mapFolder:GetChildren()) do
+                    if child.Name == "PrehistoricIsland" or child.Name == "Prehistoric Island" then
+                        if not isIgnored(child) then return child end
+                    end
+                end
+            end
             
+            -- Tìm trong _WorldOrigin
             local success, res = pcall(function()
-                return l_Workspace_1._WorldOrigin.Locations:FindFirstChild("Prehistoric Island") 
-                    or l_Workspace_1._WorldOrigin.Locations:FindFirstChild("PrehistoricIsland")
+                local locations = l_Workspace_1:FindFirstChild("_WorldOrigin") and l_Workspace_1._WorldOrigin:FindFirstChild("Locations")
+                if locations then
+                    for _, child in pairs(locations:GetChildren()) do
+                        if child.Name == "PrehistoricIsland" or child.Name == "Prehistoric Island" then
+                            if not isIgnored(child) then return child end
+                        end
+                    end
+                end
+                return nil
             end)
             if success and res then return res end
+
             return nil
         end
 
@@ -7785,9 +7812,8 @@ v489:AddToggle({
 
             RemoveBoatPhysics(boat, seat)
 
-            -- [FIX BUG]: Định hướng thuyền cẩn thận để tạo trục (RightVector) lượn sóng chuẩn xác
+            -- [FIX BUG]: Định hướng thuyền cẩn thận để tạo trục lượn sóng chuẩn xác
             local targetPos = TARGET_SEA_CFRAME.Position
-            -- Xoay đầu thuyền hướng về đích, giữ trục Y thăng bằng (không bị hếch lên)
             local startCFrame = CFrame.lookAt(seat.Position, Vector3.new(targetPos.X, seat.Position.Y, targetPos.Z))
             local endCFrame = startCFrame + (targetPos - seat.Position)
 
@@ -7803,29 +7829,38 @@ v489:AddToggle({
             _G.VirtualCFrameTween = TweenService:Create(_G.VirtualCFrame, tweenInfo, {Value = endCFrame})
             _G.VirtualCFrameTween:Play()
 
-            -- Liên tục ép vị trí thuyền theo giá trị ảo + HIỆU ỨNG THUYỀN LƯỢN SÓNG (SNAKE)
+            -- HIỆU ỨNG THUYỀN LƯỢN SÓNG (SNAKE)
             if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() end
             _G.BoatMoveLoop = RunService.Heartbeat:Connect(function()
                 if seat and seat.Parent and _G.VirtualCFrame then
-                    -- math.sin(tốc độ) * biên_độ. Lượn qua lượn lại 15 studs để bypass 100% Anti-Cheat
                     local snakeSway = math.sin(os.clock() * 5) * 15 
-                    
-                    -- CFrame.new(snakeSway, 0, 0) sẽ đẩy thuyền qua Trái/Phải dọc theo đường bay
                     seat.CFrame = _G.VirtualCFrame.Value * CFrame.new(snakeSway, 0, 0)
-                    
                     seat.Velocity = Vector3.new(0, 0, 0)
                     seat.RotVelocity = Vector3.new(0, 0, 0)
                 else
                     if _G.BoatMoveLoop then _G.BoatMoveLoop:Disconnect() end
                 end
             end)
-            
-            -- ĐÃ XÓA LOOP CAMERAOFFSET, trả lại quyền xoay Camera tự do cho bạn
         end
 
         if not v851 then
             CleanupAuto()
             return
+        else
+            -- [FIX 2]: Khi bật Toggle, tự động quét và cho tất cả Prehistoric Island hiện tại vào Blacklist
+            _G.IgnoredPrehistoricIslands = {}
+            
+            local function AddToIgnoreList(folder)
+                if not folder then return end
+                for _, child in pairs(folder:GetChildren()) do
+                    if child.Name == "PrehistoricIsland" or child.Name == "Prehistoric Island" then
+                        table.insert(_G.IgnoredPrehistoricIslands, child)
+                    end
+                end
+            end
+
+            AddToIgnoreList(l_Workspace_1:FindFirstChild("Map"))
+            pcall(function() AddToIgnoreList(l_Workspace_1._WorldOrigin.Locations) end)
         end
         
         if not _G.NoclipLoop then
@@ -7887,7 +7922,8 @@ v489:AddToggle({
                             end
                         end)
 
-                        local prehistoric = FindPrehistoricIsland()
+                        -- Sử dụng hàm tìm đảo đã lọc Blacklist
+                        local prehistoric = FindValidPrehistoricIsland()
                         if prehistoric then
                             local pPart = prehistoric:IsA("Model") and prehistoric.PrimaryPart or prehistoric:FindFirstChildWhichIsA("BasePart")
                             if pPart and (pPart.Position - currentSeat.Position).Magnitude <= 3500 then
@@ -7896,31 +7932,7 @@ v489:AddToggle({
                             end
                         end
 
-                        local mapFolder = l_Workspace_1:FindFirstChild("Map")
-                        if mapFolder then
-                            for _, island in pairs(mapFolder:GetChildren()) do
-                                if island:IsA("Model") and island.Name ~= "Base" and island.Name ~= "Sea" and island.Name ~= "Sky" then
-                                    local islandPart = island.PrimaryPart or island:FindFirstChildWhichIsA("BasePart")
-                                    if islandPart then
-                                        local distanceToIsland = (islandPart.Position - currentSeat.Position).Magnitude
-                                        
-                                        if distanceToIsland <= 1000 and island.Name ~= "PrehistoricIsland" and island.Name ~= "Prehistoric Island" then
-                                            if _G.VirtualCFrameTween then _G.VirtualCFrameTween:Cancel() end
-                                            
-                                            humanoid.Sit = false 
-                                            task.wait(0.1)
-                                            
-                                            local hrp = char:FindFirstChild("HumanoidRootPart")
-                                            if hrp then hrp.CFrame = hrp.CFrame + Vector3.new(0, 50, 0) end
-                                            
-                                            _G.AutoFindPrehistoric = false 
-                                            CleanupAuto()
-                                            return
-                                        end
-                                    end
-                                end
-                            end
-                        end
+                        -- [FIX 1]: Đã xóa đoạn code check khoảng cách với MapFolder gây dừng tween ở đảo ngẫu nhiên
                     end
                 end)
 
