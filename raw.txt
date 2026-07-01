@@ -7668,8 +7668,7 @@ v489:AddToggle({
 
         -- Tọa độ cấu hình
         local BUY_BOAT_CFRAME = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
-        -- Đã sửa lại tọa độ đích (không để số quá dài gây lỗi tràn bộ nhớ của Roblox)
-        local TARGET_SEA_CFRAME = CFrame.new(-15000000, 20, 75000) 
+        local TARGET_SEA_CFRAME = CFrame.new(-1400000000008070000000003.36, 100000000.0, 772826382900021.05) 
 
         local function topos(targetCFrame, speed)
             speed = speed or 300 
@@ -7786,17 +7785,11 @@ v489:AddToggle({
 
             RemoveBoatPhysics(boat, seat)
 
-            -- [FIX]: Force thuyền bay ở độ cao 200 (trên 150m) để vượt qua mọi chướng ngại vật
-            local flyHeight = 200 
             local targetPos = TARGET_SEA_CFRAME.Position
-            
-            local startPos = Vector3.new(seat.Position.X, flyHeight, seat.Position.Z)
-            local endPos = Vector3.new(targetPos.X, flyHeight, targetPos.Z)
+            local startCFrame = CFrame.lookAt(seat.Position, Vector3.new(targetPos.X, seat.Position.Y, targetPos.Z))
+            local endCFrame = startCFrame + (targetPos - seat.Position)
 
-            local startCFrame = CFrame.lookAt(startPos, endPos)
-            local endCFrame = startCFrame + (endPos - startPos)
-
-            local distance = (endPos - startPos).Magnitude
+            local distance = (targetPos - seat.Position).Magnitude
             local duration = distance / 350
             local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 
@@ -7812,7 +7805,9 @@ v489:AddToggle({
             _G.BoatMoveLoop = RunService.Heartbeat:Connect(function()
                 if seat and seat.Parent and _G.VirtualCFrame then
                     local snakeSway = math.sin(os.clock() * 5) * 15 
+                    
                     seat.CFrame = _G.VirtualCFrame.Value * CFrame.new(snakeSway, 0, 0)
+                    
                     seat.Velocity = Vector3.new(0, 0, 0)
                     seat.RotVelocity = Vector3.new(0, 0, 0)
                 else
@@ -7885,17 +7880,19 @@ v489:AddToggle({
                             end
                         end)
 
+                        -- [ĐÃ FIX]: Chỉ dừng khi gặp đúng đảo Prehistoric Island trong phạm vi 2000 studs
                         local prehistoric = FindPrehistoricIsland()
                         if prehistoric then
                             local pPart = prehistoric:IsA("Model") and prehistoric.PrimaryPart or prehistoric:FindFirstChildWhichIsA("BasePart")
-                            -- [FIX]: Đã chỉnh lại khoảng cách dừng thuyền thành <= 2000 studs
-                            if pPart and (pPart.Position - currentSeat.Position).Magnitude <= 2000 then
-                                _G.AutoFindPrehistoric = false
-                                break
+                            if pPart then
+                                local distanceToPrehistoric = (pPart.Position - currentSeat.Position).Magnitude
+                                if distanceToPrehistoric <= 2000 then
+                                    _G.AutoFindPrehistoric = false
+                                    break -- Thoát vòng lặp để kích hoạt CleanupAuto bên dưới
+                                end
                             end
                         end
-                        
-                        -- ĐÃ XÓA TOÀN BỘ ĐOẠN CHECK VÀ DỪNG LẠI Ở CÁC ĐẢO KHÁC (mapFolder check)
+                        -- [ĐÃ XÓA]: Toàn bộ đoạn code quét map Folder cũ (gây dừng ở đảo linh tinh)
                     end
                 end)
 
