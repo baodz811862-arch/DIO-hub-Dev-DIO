@@ -7669,7 +7669,7 @@ v489:AddToggle({
         -- Tọa độ cấu hình
         local BUY_BOAT_CFRAME = CFrame.new(-16927.451171875, 9.0863618850708, 433.8642883300781)
         -- Đã sửa lại tọa độ đích (không để số quá dài gây lỗi tràn bộ nhớ của Roblox)
-        local TARGET_SEA_CFRAME = CFrame.new(-15000000, 200, 75000) 
+        local TARGET_SEA_CFRAME = CFrame.new(-15000000, 150, 75000) 
 
         local function topos(targetCFrame, speed)
             speed = speed or 300 
